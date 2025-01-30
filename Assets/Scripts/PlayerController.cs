@@ -1,26 +1,21 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 
-
-public enum Positions
-{
-    onLeft,
-    onRight,
-    onMiddle
-}
-
-
 public class PlayerController : MonoBehaviour
 {
+    [Header("Elements")]
     [SerializeField] Rigidbody rb;
     [SerializeField] Animator anim;
 
+    [Header("Settings")]
+    [Tooltip("Bu Değişken oyuncunun hızını belirler")]
     [SerializeField] float speed;
+    [Tooltip("Bu Değişken oyuncunun sağa sola kaç metre gideceğiniz ayarlar")]
     [SerializeField] float shift = 2;
 
-    [SerializeField] Positions positions = Positions.onMiddle;
+    [HideInInspector] public Positions positions = Positions.onMiddle;
 
-    [SerializeField] bool isLeft, isRight, isMiddle;
+    [HideInInspector]public bool isLeft, isRight, isMiddle;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -28,8 +23,19 @@ public class PlayerController : MonoBehaviour
         isMiddle = true;
     }
 
-    // Update is called once per frame
+
     void Update()
+    {
+        MoveCharacter();
+
+
+    }
+
+
+    /// <summary>
+    /// Bu metod karakterin temel hareket kodu
+    /// </summary>
+    void MoveCharacter()
     {
         transform.Translate(Vector3.forward * speed * Time.deltaTime);
 
@@ -115,10 +121,36 @@ public class PlayerController : MonoBehaviour
         */
         #endregion
 
-
     }
 
-    private void LateUpdate()
+    /// <summary>
+    /// ilk çarpıştığımız an
+    /// </summary>
+    /// <param name="collision"></param>
+    private void OnCollisionEnter(Collision other)
+    {
+        if(other.gameObject.CompareTag("Obstacle"))
+        {
+            anim.SetBool("Death", true);
+        }
+    }
+
+    /*
+    /// <summary>
+    /// çarpışmanın bittiği an
+    /// </summary>
+    /// <param name="collision"></param>
+    private void OnCollisionExit(Collision other)
     {
     }
+
+
+    /// <summary>
+    /// çarpışma boyunca çalışan metod
+    /// </summary>
+    /// <param name="collision"></param>
+    private void OnCollisionStay(Collision other)
+    {
+    }
+    */
 }
