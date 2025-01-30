@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
+using DG.Tweening;
 
 public class PlayerController : MonoBehaviour
 {
@@ -16,6 +17,9 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public Positions positions = Positions.onMiddle;
 
     [HideInInspector]public bool isLeft, isRight, isMiddle;
+
+    bool isDead;
+    [SerializeField] int score;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -37,17 +41,21 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void MoveCharacter()
     {
+        if(isDead) return;
+
         transform.Translate(Vector3.forward * speed * Time.deltaTime);
 
         #region Karakter Sınırlama Yöntemleri
 
         if (Input.GetKeyDown(KeyCode.A) && transform.position.x > -0.5f)
         {
-            transform.Translate(new Vector3(-shift, 0, 0));
+            //transform.Translate(new Vector3(-shift, 0, 0));
+            transform.DOMoveX(transform.position.x - shift, 0.5f).SetEase(Ease.Linear);
         }
         else if (Input.GetKeyDown(KeyCode.D) && transform.position.x < 0.5f)
         {
-            transform.Translate(new Vector3(shift, 0, 0));
+            //transform.Translate(new Vector3(shift, 0, 0));
+            transform.DOMoveX(transform.position.x + shift, 0.5f).SetEase(Ease.Linear);
         }
 
         /*
@@ -132,6 +140,7 @@ public class PlayerController : MonoBehaviour
         if(other.gameObject.CompareTag("Obstacle"))
         {
             anim.SetBool("Death", true);
+            isDead = true;
         }
     }
 
@@ -153,4 +162,13 @@ public class PlayerController : MonoBehaviour
     {
     }
     */
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if(other.CompareTag("Coin"))
+        {
+            score += 10;
+            Destroy(other.gameObject);
+        }
+    }
 }
