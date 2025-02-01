@@ -1,12 +1,13 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 using DG.Tweening;
+using System;
 
 public class PlayerController : MonoBehaviour
 {
     [Header("Elements")]
     [SerializeField] Rigidbody rb;
-    [SerializeField] Animator anim;
+    [SerializeField] public Animator anim;
 
     [Header("Settings")]
     [Tooltip("Bu Değişken oyuncunun hızını belirler")]
@@ -16,10 +17,19 @@ public class PlayerController : MonoBehaviour
 
     [HideInInspector] public Positions positions = Positions.onMiddle;
 
-    [HideInInspector]public bool isLeft, isRight, isMiddle;
+    [HideInInspector] public bool isLeft, isRight, isMiddle;
 
-    bool isDead;
-    [SerializeField] int score;
+    [HideInInspector] public bool isDead;
+    [HideInInspector] public bool isStart;
+    [SerializeField] public int score;
+    [HideInInspector] public float floatScore;
+    [HideInInspector] float passedTime;
+    [SerializeField] int health;
+
+    public bool is2xActive, isShieldActive, isMagnetActive;
+    float beforeSpeed;
+
+    bool isMove;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -30,9 +40,8 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        passedTime += Time.deltaTime;
         MoveCharacter();
-
-
     }
 
 
@@ -41,21 +50,46 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void MoveCharacter()
     {
+        if (!isStart) return;
         if(isDead) return;
+
+        if(is2xActive)
+        {
+            floatScore += Time.deltaTime;
+        }
+
+        floatScore += Time.deltaTime;
+
+        if (floatScore > 1)
+        {
+            score += 1;
+            floatScore = 0;
+        }
+
+        if(passedTime > 10)
+        {
+            speed += 0.3f;
+            passedTime = 0;
+        }
+
 
         transform.Translate(Vector3.forward * speed * Time.deltaTime);
 
         #region Karakter Sınırlama Yöntemleri
 
-        if (Input.GetKeyDown(KeyCode.A) && transform.position.x > -0.5f)
+        if (Input.GetKeyDown(KeyCode.A) && transform.position.x > -0.5f && !isMove)
         {
             //transform.Translate(new Vector3(-shift, 0, 0));
-            transform.DOMoveX(transform.position.x - shift, 0.5f).SetEase(Ease.Linear);
+            transform.DOMoveX(transform.position.x - shift, 0.5f).SetEase(Ease.Linear).OnComplete(isMoveToFalse);
+
+            isMove = true;
         }
-        else if (Input.GetKeyDown(KeyCode.D) && transform.position.x < 0.5f)
+        else if (Input.GetKeyDown(KeyCode.D) && transform.position.x < 0.5f && !isMove)
         {
             //transform.Translate(new Vector3(shift, 0, 0));
-            transform.DOMoveX(transform.position.x + shift, 0.5f).SetEase(Ease.Linear);
+            transform.DOMoveX(transform.position.x + shift, 0.5f).SetEase(Ease.Linear).OnComplete(isMoveToFalse);
+
+            isMove = true;
         }
 
         /*
@@ -131,6 +165,12 @@ public class PlayerController : MonoBehaviour
 
     }
 
+
+    void isMoveToFalse()
+    {
+        isMove = false;
+    }
+
     /// <summary>
     /// ilk çarpıştığımız an
     /// </summary>
@@ -139,8 +179,34 @@ public class PlayerController : MonoBehaviour
     {
         if(other.gameObject.CompareTag("Obstacle"))
         {
+            int damage = other.gameObject.GetComponent<Obstacle>().damage;
+
+            if(isShieldActive)
+            {
+                Destroy(other.gameObject);
+                isShieldActive = false;
+            }
+            else
+            {
+                CheckHealth(damage, other.gameObject);
+            }
+
+
+        }
+    }
+
+    void CheckHealth(int damage, GameObject other)
+    {
+        health -= damage;
+
+        if(health <= 0)
+        {
             anim.SetBool("Death", true);
             isDead = true;
+        }
+        else
+        {
+            Destroy(other.gameObject);
         }
     }
 
@@ -165,10 +231,99 @@ public class PlayerController : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if(other.CompareTag("Coin"))
+        if(other.CompareTag("Collectable"))
         {
-            score += 10;
+            Collectables collectable = other.GetComponent<Collectables>();
+
+            switch(collectable.collectablesEnum)
+            {
+                case CollectablesEnum.Coin:
+                    AddScore(collectable.toBeAddedScore);
+                    break;
+                case CollectablesEnum.Shield:
+                    ActivateShield();
+                    break;
+                case CollectablesEnum.Health:
+                    AddHealth(collectable.toBeAddedHealth);
+                    break;
+                case CollectablesEnum.Score2X:
+                    ActivateBonus();
+                    break;
+                case CollectablesEnum.SpeedUp:
+                    AddSpeed(collectable.toBeAddedSpeed);
+                    break;
+                case CollectablesEnum.Magnet:
+                    ActivateMagnet();
+                    break;
+            }
+
             Destroy(other.gameObject);
         }
+    }
+
+    private void AddSpeed(int toBeAddedSpeed)
+    {
+        beforeSpeed = speed;
+        speed += toBeAddedSpeed;
+
+        Invoke("BackToOriginalSpeed", 5f);
+    }
+
+    void BackToOriginalSpeed()
+    {
+        speed = beforeSpeed;
+    }
+
+    void AddScore(int toBeAddedScore)
+    {
+        if(is2xActive)
+        {
+            toBeAddedScore *= 2;
+        }
+        score += toBeAddedScore;
+    }
+
+    void ActivateShield()
+    {
+        isShieldActive = true;
+        Invoke("DeactivateShield", 5f);
+    }
+    
+    void DeactivateShield()
+    {
+        isShieldActive = false;
+    }
+
+    void AddHealth(int toBeAddedHealth)
+    {
+        health += toBeAddedHealth;
+
+        if (health <= 0)
+        {
+            anim.SetBool("Death", true);
+            isDead = true;
+        }
+    }
+
+    void ActivateBonus()
+    {
+        is2xActive = true;
+        Invoke("DeactivateBonus", 5f);
+    }
+
+    void DeactivateBonus()
+    {
+        is2xActive = false;
+    }
+
+    void ActivateMagnet()
+    {
+        isMagnetActive = true;
+        Invoke("DeactivateMagnet", 5f);
+    }
+
+    void DeactivateMagnet()
+    {
+        isMagnetActive = false;
     }
 }
